@@ -1,0 +1,67 @@
+name: wagering
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: wagering
+      POSTGRES_PASSWORD: wagering
+      POSTGRES_DB: wagering
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Cria o banco "wagering_test" usado pelos testes de integração.
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wagering -d wagering"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Emulador de AWS (SQS). LocalStack passou a exigir conta/token em 2026,
+  # então usamos o MiniStack, que expõe a mesma API na porta 4566.
+  sqs:
+    image: ministackorg/ministack:latest
+    ports:
+      - "4566:4566"
+
+  # Container de execução única: espera o SQS subir e cria as filas FIFO.
+  sqs-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+      - sqs
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      SQS_ENDPOINT: http://sqs:4566
+    entrypoint: ["sh", "/scripts/create-queues.sh"]
+    volumes:
+      - ./docker/sqs/create-queues.sh:/scripts/create-queues.sh:ro
+
+  # A aplicação em container. Fica num profile para não subir junto no dia a dia
+  # (em dev você roda com `bun run dev`). Use para testar várias instâncias:
+  #   docker compose --profile app up --build --scale app=3
+  app:
+    profiles: ["app"]
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      sqs-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://wagering:wagering@postgres:5432/wagering
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      SQS_ENDPOINT: http://sqs:4566
+      SQS_QUEUE_NAME: wager-transactions.fifo
+      SQS_DLQ_NAME: wager-transactions-dlq.fifo
+    ports:
+      - "3000"
+
+volumes:
+  postgres-data:
