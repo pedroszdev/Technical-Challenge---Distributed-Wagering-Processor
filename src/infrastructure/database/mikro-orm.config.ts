@@ -24,6 +24,12 @@ export default defineConfig({
     // Cada migration roda dentro de uma transação; se falhar, nada fica pela metade.
     transactional: true,
     allOrNothing: true,
+    // As migrations são escritas à mão (SQL puro), então não usamos o snapshot,
+    // que só serve para GERAR migrations comparando com as entities.
+    snapshot: false,
+    snapshotOnMigrate: false,
+    // Sem logs "[migrator] Processing..." poluindo a saída dos testes.
+    silent: process.env.NODE_ENV === "test",
   },
 
   debug: false,
