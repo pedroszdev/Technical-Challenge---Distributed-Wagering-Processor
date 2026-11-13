@@ -45,6 +45,7 @@ export interface WagerTransactionState {
   referenceTransactionId?: string;
   failureCode?: FailureCode;
   processedAt?: Date;
+  balanceAfter?: Money;
 }
 
 export class WagerTransaction {
@@ -67,6 +68,8 @@ export class WagerTransaction {
     private _referenceTransactionId?: string,
     private _failureCode?: FailureCode,
     private _processedAt?: Date,
+    /** Saldo da wallet no momento em que a transação foi aplicada (devolvido em replays). */
+    private _balanceAfter?: Money,
   ) {}
 
   /** Nasce em PENDING. Valida a exigência de referência por kind. */
@@ -95,19 +98,20 @@ export class WagerTransaction {
   }
 
   static rehydrate(state: WagerTransactionState): WagerTransaction {
-    const { id, providerId, externalTransactionId, idempotencyKey, payloadHash, walletId, playerId, roundId, gameId, kind, money, referenceExternalTransactionId, createdAt, status, referenceTransactionId, failureCode, processedAt } = state;
-    return new WagerTransaction(id, providerId, externalTransactionId, idempotencyKey, payloadHash, walletId, playerId, roundId, gameId, kind, money, referenceExternalTransactionId, createdAt, status, referenceTransactionId, failureCode, processedAt);
+    const { id, providerId, externalTransactionId, idempotencyKey, payloadHash, walletId, playerId, roundId, gameId, kind, money, referenceExternalTransactionId, createdAt, status, referenceTransactionId, failureCode, processedAt, balanceAfter } = state;
+    return new WagerTransaction(id, providerId, externalTransactionId, idempotencyKey, payloadHash, walletId, playerId, roundId, gameId, kind, money, referenceExternalTransactionId, createdAt, status, referenceTransactionId, failureCode, processedAt, balanceAfter);
   }
 
   get status(): WagerTransactionStatus { return this._status; }
   get referenceTransactionId(): string | undefined { return this._referenceTransactionId; }
   get failureCode(): FailureCode | undefined { return this._failureCode; }
   get processedAt(): Date | undefined { return this._processedAt; }
+  get balanceAfter(): Money | undefined { return this._balanceAfter; }
 
   // ---- transições (lançam InvalidTransactionStateError se o estado atual for terminal)
   // Regra: primeiro TODAS as validações, depois as mudanças.
 
-  markProcessed(referenceTransactionId: string | undefined, at: Date): void {
+  markProcessed(referenceTransactionId: string | undefined, at: Date, balanceAfter: Money): void {
     this.assertNotTerminal(WagerTransactionStatus.Processed);
     if (this.requiresReference() && !referenceTransactionId) {
       throw new MissingReferenceError(this.kind);
@@ -116,6 +120,7 @@ export class WagerTransaction {
     this._status = WagerTransactionStatus.Processed;
     this._processedAt = at;
     this._referenceTransactionId = referenceTransactionId;
+    this._balanceAfter = balanceAfter;
   }
 
   markPendingReference(): void {

@@ -176,15 +176,16 @@ describe("WagerTransaction: consultas", () => {
 // =====================================================================================
 
 describe("WagerTransaction: transições válidas", () => {
-  test("PENDING → markProcessed → PROCESSED, com processedAt = data passada", () => {
+  test("PENDING → markProcessed → PROCESSED, com processedAt = data passada e o saldo observado", () => {
     const tx = WagerTransaction.create(validProps());
     const at = new Date("2026-03-01T12:00:00.000Z");
 
-    tx.markProcessed(undefined, at);
+    tx.markProcessed(undefined, at, brl("75.00"));
 
     expect(tx.status).toBe(Processed);
     expect(tx.processedAt).toBe(at);
     expect(tx.referenceTransactionId).toBeUndefined();
+    expect(tx.balanceAfter?.equals(brl("75.00"))).toBe(true);
   });
 
   test("PENDING → markPendingReference → PENDING_REFERENCE", () => {
@@ -204,7 +205,7 @@ describe("WagerTransaction: transições válidas", () => {
     const tx = withReference(Refund);
     tx.markPendingReference();
 
-    tx.markProcessed("uuid-da-bet", new Date());
+    tx.markProcessed("uuid-da-bet", new Date(), brl("100.00"));
 
     expect(tx.status).toBe(Processed);
     expect(tx.referenceTransactionId).toBe("uuid-da-bet");
@@ -241,18 +242,19 @@ describe("WagerTransaction: markProcessed sem referência em REFUND/ROLLBACK", (
   test.each([[Refund], [Rollback]])("%s → MissingReferenceError e NADA muda", (kind) => {
     const tx = withReference(kind);
 
-    expect(() => tx.markProcessed(undefined, new Date())).toThrow(MissingReferenceError);
+    expect(() => tx.markProcessed(undefined, new Date(), brl("100.00"))).toThrow(MissingReferenceError);
 
     // O bug que você corrigiu: o status não pode ter virado PROCESSED antes do erro.
     expect(tx.status).toBe(Pending);
     expect(tx.processedAt).toBeUndefined();
+    expect(tx.balanceAfter).toBeUndefined();
   });
 });
 
 describe("WagerTransaction: status terminal não muda", () => {
   const terminals = [Processed, Rejected, Failed];
   const transitions: [string, (tx: WagerTransaction) => void][] = [
-    ["markProcessed", (tx) => tx.markProcessed(undefined, new Date())],
+    ["markProcessed", (tx) => tx.markProcessed(undefined, new Date(), brl("100.00"))],
     ["markPendingReference", (tx) => tx.markPendingReference()],
     ["reject", (tx) => tx.reject(FailureCode.InsufficientFunds)],
     ["fail", (tx) => tx.fail(FailureCode.PermanentFailure)],

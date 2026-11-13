@@ -1,6 +1,9 @@
 import { defineConfig } from "@mikro-orm/postgresql";
 import { Migrator } from "@mikro-orm/migrations";
 import { env } from "../../config/env.ts";
+import { LedgerEntryEntity } from "./entities/ledger-entry.entity.ts";
+import { WagerTransactionEntity } from "./entities/wager-transaction.entity.ts";
+import { WalletEntity } from "./entities/wallet.entity.ts";
 
 /**
  * Configuração única do MikroORM, usada pela aplicação (AppModule)
@@ -9,11 +12,8 @@ import { env } from "../../config/env.ts";
 export default defineConfig({
   clientUrl: env.databaseUrl,
 
-  // Registre aqui os mapeamentos das suas entidades conforme for criando.
-  // Dica: como o domínio não pode depender do ORM, `defineEntity`/`EntitySchema`
-  // permite mapear classes de domínio sem colocar decorators nelas.
-  entities: [],
-  discovery: { warnWhenNoEntities: false },
+  // Formato das linhas do banco (não são as classes de domínio; ver mappers/).
+  entities: [WalletEntity, WagerTransactionEntity, LedgerEntryEntity],
 
   extensions: [Migrator],
   migrations: {
