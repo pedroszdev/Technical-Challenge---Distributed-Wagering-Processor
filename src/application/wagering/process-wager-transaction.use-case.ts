@@ -126,7 +126,7 @@ export class ProcessWagerTransactionUseCase {
                 const umSegundo: Date = new Date(Date.now() + 1000);
                 return {nextAttemptAt: umSegundo}
             }
-            const alreadyReversed = await this.transactions.hasProcessedReversal(tx, reference.id, transaction.kind)
+            const alreadyReversed = await this.transactions.hasProcessedReversal(tx, reference.id)
             const failure = checkReversal(transaction, reference, alreadyReversed)
             if (failure) {
                 transaction.reject(failure)

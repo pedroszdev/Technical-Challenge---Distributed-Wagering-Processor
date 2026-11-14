@@ -22,11 +22,16 @@ export class WagerTransactionRepository {
     return record ? wagerTransactionToDomain(record) : null;
   }
   
-  //saber se essa BET já foi revertida
-  async hasProcessedReversal(em: EntityManager, referenceTransactionId: string, kind: WagerTransactionKind): Promise<boolean> {
-    const count = await em.count(WagerTransactionEntity,{
-      // os 3 filtros: a quem aponta, de que tipo é, e qual o status
-      referenceTransactionId, kind, status: WagerTransactionStatus.Processed
+  /**
+   * Essa transação já foi revertida? Conta QUALQUER reversão processada (REFUND ou
+   * ROLLBACK), não só a do mesmo tipo: senão um REFUND seguido de um ROLLBACK da
+   * mesma BET devolveria o dinheiro duas vezes.
+   */
+  async hasProcessedReversal(em: EntityManager, referenceTransactionId: string): Promise<boolean> {
+    const count = await em.count(WagerTransactionEntity, {
+      referenceTransactionId,
+      kind: { $in: [WagerTransactionKind.Refund, WagerTransactionKind.Rollback] },
+      status: WagerTransactionStatus.Processed,
     });
     return count > 0;
   }
