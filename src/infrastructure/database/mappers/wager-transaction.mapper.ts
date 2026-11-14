@@ -12,7 +12,7 @@ import type { WagerTransactionRecord } from "../entities/wager-transaction.entit
  * `attempts` e `nextAttemptAt` são controle do worker de PENDING_REFERENCE (dia 2);
  * por enquanto uma transação nova começa com 0 tentativas.
  */
-export function wagerTransactionToRecord(tx: WagerTransaction): WagerTransactionRecord {
+export function wagerTransactionToRecord(tx: WagerTransaction, schedule: { nextAttemptAt?: Date } = {},): WagerTransactionRecord {
   return {
     id: tx.id,
     providerId: tx.providerId,
@@ -33,7 +33,7 @@ export function wagerTransactionToRecord(tx: WagerTransaction): WagerTransaction
     failureCode: tx.failureCode ?? null,
     balanceAfterAmount: tx.balanceAfter?.toJSON().amount ?? null,
     attempts: 0,
-    nextAttemptAt: null,
+    nextAttemptAt: schedule.nextAttemptAt ?? null,
     createdAt: tx.createdAt,
     processedAt: tx.processedAt ?? null,
   };
